@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Versionize": {
+      "commandName": "Project",
+      "commandLineArgs": "-w C:\\Workarea\\MwGit\\BitBucketTest\\test --version-from-tag --version-tag-prefix odos_v --skip-project-versioning --skip-changelog"
+    }
+  }
+}
