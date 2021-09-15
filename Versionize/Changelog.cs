@@ -3,15 +3,19 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Version = NuGet.Versioning.SemanticVersion;
+using static Versionize.CommandLine.CommandLineUI;
 
 namespace Versionize
 {
     public class Changelog
     {
-        private const string Preamble = @"# Change Log\n\nAll notable changes to this project will be documented in this file. See [versionize](https://github.com/saintedlama/versionize) for commit guidelines.\n";
+        private string Preamble = "# Change Log" + Environment.NewLine + Environment.NewLine +
+            @"All notable changes to this project will be documented in this file. See [versionize](https://github.com/saintedlama/versionize) for commit guidelines." + 
+            Environment.NewLine;
 
-        private Changelog(string file)
+        public Changelog(string file)
         {
             FilePath = file;
         }
@@ -23,44 +27,46 @@ namespace Versionize
         {
             var versionTagLink = string.IsNullOrWhiteSpace(linkBuilder.BuildVersionTagLink(version)) ? version.ToString() : $"[{version}]({linkBuilder.BuildVersionTagLink(version)})";
 
-            var markdown = $"<a name=\"{version}\"></a>";
-            markdown += "\n";
-            markdown += $"## {versionTagLink} ({versionTime.Year}-{versionTime.Month}-{versionTime.Day})";
-            markdown += "\n";
-            markdown += "\n";
+            string versionId = $"{version.ToFullString().Replace(".", "_")}";
 
-            var bugFixes = BuildBlock("Bug Fixes", linkBuilder, commits.Where(commit => commit.IsFix));
+            var markdown = $"<a name=\"{versionId}\"></a>";
+            markdown += "\n";
+            markdown += $"## <a id=\"{versionId}\"></a> {versionTagLink} ({versionTime.Year}-{versionTime.Month}-{versionTime.Day})";
+            markdown += Environment.NewLine;
+            markdown += Environment.NewLine;
+
+            var bugFixes = BuildBlock("Bug Fixes", linkBuilder, commits.Where(commit => commit.IsFix), versionId);
 
             if (!string.IsNullOrWhiteSpace(bugFixes))
             {
                 markdown += bugFixes;
-                markdown += "\n";
+                markdown += Environment.NewLine;
             }
 
-            var features = BuildBlock("Features", linkBuilder, commits.Where(commit => commit.IsFeature));
+            var features = BuildBlock("Features", linkBuilder, commits.Where(commit => commit.IsFeature), versionId);
 
             if (!string.IsNullOrWhiteSpace(features))
             {
                 markdown += features;
-                markdown += "\n";
+                markdown += Environment.NewLine;
             }
 
-            var breaking = BuildBlock("Breaking Changes", linkBuilder, commits.Where(commit => commit.IsBreakingChange));
+            var breaking = BuildBlock("Breaking Changes", linkBuilder, commits.Where(commit => commit.IsBreakingChange), versionId);
 
             if (!string.IsNullOrWhiteSpace(breaking))
             {
                 markdown += breaking;
-                markdown += "\n";
+                markdown += Environment.NewLine;
             }
 
             if (includeAllCommitsInChangelog)
             {
-                var other = BuildBlock("Other", linkBuilder, commits.Where(commit => !commit.IsFix && !commit.IsFeature && !commit.IsBreakingChange));
+                var other = BuildBlock("Other", linkBuilder, commits.Where(commit => !commit.IsFix && !commit.IsFeature && !commit.IsBreakingChange), versionId);
 
                 if (!string.IsNullOrWhiteSpace(other))
                 {
                     markdown += other;
-                    markdown += "\n";
+                    markdown += Environment.NewLine;
                 }
             }
 
@@ -70,13 +76,23 @@ namespace Versionize
 
                 var firstReleaseHeadlineIdx = contents.IndexOf("<a name=\"", StringComparison.Ordinal);
 
+                Match result = Regex.Match(contents, "a name=\"" +@"([\s\S]*?)" +"\"></a>", RegexOptions.ECMAScript);
+                if(result.Groups.Count > 1 && result.Groups[1].Value != null)
+                {
+                    Version lastFoundVersion = null;
+                    if(Version.TryParse(result.Groups[1].Value.Replace("_","."), out lastFoundVersion) && lastFoundVersion >= version)
+                    {
+                        Exit($"Could not append changelog for version {version}. The most recent version found is {lastFoundVersion} which is larger or equal to {version}.", 0);
+                    }
+                }           
+
                 if (firstReleaseHeadlineIdx >= 0)
                 {
                     markdown = contents.Insert(firstReleaseHeadlineIdx, markdown);
                 }
                 else
                 {
-                    markdown = contents + "\n\n" + markdown;
+                    markdown = contents + Environment.NewLine + Environment.NewLine + markdown;
                 }
 
                 File.WriteAllText(FilePath, markdown);
@@ -87,21 +103,21 @@ namespace Versionize
             }
         }
 
-        public static string BuildBlock(string header, IChangelogLinkBuilder linkBuilder, IEnumerable<ConventionalCommit> commits)
+        public static string BuildBlock(string header, IChangelogLinkBuilder linkBuilder, IEnumerable<ConventionalCommit> commits, string versionId)
         {
             if (!commits.Any())
             {
                 return null;
             }
 
-            var block = $"### {header}";
-            block += "\n";
-            block += "\n";
+            var block = $"### <a id=\"{versionId}-{header.Replace(" ", "_")}\"></a> {header}";
+            block += Environment.NewLine;
+            block += Environment.NewLine;
 
             return commits
                 .OrderBy(c => c.Scope)
                 .ThenBy(c => c.Subject)
-                .Aggregate(block, (current, commit) => current + BuildCommit(commit, linkBuilder) + "\n");
+                .Aggregate(block, (current, commit) => current + BuildCommit(commit, linkBuilder) + Environment.NewLine);
         }
 
         public static string BuildCommit(ConventionalCommit commit, IChangelogLinkBuilder linkBuilder)

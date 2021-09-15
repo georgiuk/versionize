@@ -8,9 +8,18 @@ namespace Versionize
     {
         public static IChangelogLinkBuilder CreateFor(Repository repository)
         {
+            return CreateFor(repository, false);
+        }
+
+        public static IChangelogLinkBuilder CreateFor(Repository repository, bool changelogNoLinks)
+        {
             var origin = repository.Network.Remotes.FirstOrDefault(remote => remote.Name == "origin") ?? repository.Network.Remotes.FirstOrDefault();
 
-            if (origin != null && IsGithubPushUrl(origin.PushUrl))
+            if(changelogNoLinks)
+            {
+                return new PlainLinkBuilder();
+            }
+            else if (origin != null && IsGithubPushUrl(origin.PushUrl))
             {
                 return new GithubLinkBuilder(origin.PushUrl);
             }

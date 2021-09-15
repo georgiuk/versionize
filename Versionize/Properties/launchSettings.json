@@ -2,7 +2,7 @@
   "profiles": {
     "Versionize": {
       "commandName": "Project",
-      "commandLineArgs": "-w C:\\Workarea\\MwGit\\BitBucketTest\\test --version-from-tag --version-tag-prefix odos_v --skip-project-versioning --skip-changelog"
+      "commandLineArgs": "-w C:\\Workarea\\MwGit\\odos --version-tag-prefix odos-v --changelog-only  --changelog-file C:\\Workarea\\MwGit\\odos-docs-src\\src\\changelogs\\odos_current_changelog.md --skip-dirty --changelog-no-links"
     }
   }
 }

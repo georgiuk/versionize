@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using LibGit2Sharp;
 using Version = NuGet.Versioning.SemanticVersion;
@@ -24,6 +24,22 @@ namespace Versionize
                 ExcludeReachableFrom = versionTag
             };
 
+            return repository.Commits.QueryBy(filter).ToList();
+        }
+
+
+        public static List<Commit> GetCommitsBetweenTags(this Repository repository, Tag sinceVersionTag, Tag untilVersionTag)
+        {
+            if (sinceVersionTag == null && untilVersionTag == null)
+            {
+                return repository.Commits.ToList();
+            }
+
+            var filter = new CommitFilter
+            {
+                IncludeReachableFrom = untilVersionTag,
+                ExcludeReachableFrom = sinceVersionTag
+            };
             return repository.Commits.QueryBy(filter).ToList();
         }
     }

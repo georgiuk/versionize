@@ -33,28 +33,53 @@ namespace Versionize
             var optionIncludeAllCommitsInChangelog = app.Option("--changelog-all", "Include all commits in the changelog not just fix, feat and breaking changes", CommandOptionType.NoValue);
             var optionReleaseCommitMessageSuffix = app.Option("--commit-suffix", "Suffix to be added to the end of the release commit message (e.g. [skip ci])", CommandOptionType.SingleValue);
             var optionVersionTagPrefix = app.Option("--version-tag-prefix", "The prefix used for the version tag", CommandOptionType.SingleValue);
+            var optionChangelogOnly = app.Option("--changelog-only", "Create only changelog", CommandOptionType.NoValue);
+            var optionChangelogOnlySinceTag = app.Option("--since-tag-version", "When changelog only use this tag as since version", CommandOptionType.SingleValue);
+            var optionChangelogOnlyUntilTag = app.Option("--until-tag-version", "When changelog only use this tag as until version", CommandOptionType.SingleValue);
+            var optionChangelogOnlyFilePath = app.Option("--changelog-file", "The relative changelog path to the working directory when changelog only", CommandOptionType.SingleValue);
+            var optionChangelogNoLinks = app.Option("--changelog-no-links", "Don't create links in changelog", CommandOptionType.NoValue);
 
             app.OnExecute(() =>
             {
                 CommandLineUI.Verbosity = optionSilent.HasValue() ? LogLevel.Silent : LogLevel.All;
 
-                WorkingCopy
-                    .Discover(optionWorkingDirectory.Value() ?? Directory.GetCurrentDirectory())
-                    .Versionize(
-                        dryrun: optionDryRun.HasValue(),
-                        skipDirtyCheck: optionSkipDirty.HasValue(),
-                        skipCommit: optionSkipCommit.HasValue(),
-                        skipNewTag: optionSkipNewTag.HasValue(),
-                        skipChangelog: optionSkipChangelog.HasValue(),
-                        skipWriteProjectVersion: optionSkipProjectVersioning.HasValue(),
-                        skipCommitProjectVersion: optionSkipCommitProjects.HasValue(),
-                        readVersionFromTag: optionReadVersionFromTag.HasValue(),
-                        releaseVersion: optionReleaseAs.Value(),
-                        ignoreInsignificant: optionIgnoreInsignificant.HasValue(),
-                        includeAllCommitsInChangelog: optionIncludeAllCommitsInChangelog.HasValue(),
-                        releaseCommitMessageSuffix: optionReleaseCommitMessageSuffix.Value(),
-                        versionTagPrefix: optionVersionTagPrefix.Value()
-                    );
+                if(optionChangelogOnly.HasValue())
+                {
+                    WorkingCopy
+                        .Discover(optionWorkingDirectory.Value() ?? Directory.GetCurrentDirectory())
+                        .BuildChangelog(
+                            dryrun: optionDryRun.HasValue(),
+                            skipDirtyCheck: optionSkipDirty.HasValue(),
+                            skipCommit: optionSkipCommit.HasValue(),
+                            since : optionChangelogOnlySinceTag.Value(),
+                            until : optionChangelogOnlyUntilTag.Value(),
+                            changelogFile : optionChangelogOnlyFilePath.Value(),
+                            changelogNoLinks: optionChangelogNoLinks.HasValue(),
+                            includeAllCommitsInChangelog: optionIncludeAllCommitsInChangelog.HasValue(),
+                            releaseCommitMessageSuffix: optionReleaseCommitMessageSuffix.Value(),
+                            versionTagPrefix: optionVersionTagPrefix.Value()
+                        );
+                }
+                else
+                {
+                    WorkingCopy
+                        .Discover(optionWorkingDirectory.Value() ?? Directory.GetCurrentDirectory())
+                        .Versionize(
+                            dryrun: optionDryRun.HasValue(),
+                            skipDirtyCheck: optionSkipDirty.HasValue(),
+                            skipCommit: optionSkipCommit.HasValue(),
+                            skipNewTag: optionSkipNewTag.HasValue(),
+                            skipChangelog: optionSkipChangelog.HasValue(),
+                            skipWriteProjectVersion: optionSkipProjectVersioning.HasValue(),
+                            skipCommitProjectVersion: optionSkipCommitProjects.HasValue(),
+                            readVersionFromTag: optionReadVersionFromTag.HasValue(),
+                            releaseVersion: optionReleaseAs.Value(),
+                            ignoreInsignificant: optionIgnoreInsignificant.HasValue(),
+                            includeAllCommitsInChangelog: optionIncludeAllCommitsInChangelog.HasValue(),
+                            releaseCommitMessageSuffix: optionReleaseCommitMessageSuffix.Value(),
+                            versionTagPrefix: optionVersionTagPrefix.Value()
+                        );
+                }
 
                 return 0;
             });
