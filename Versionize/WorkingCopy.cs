@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LibGit2Sharp;
@@ -46,6 +47,19 @@ namespace Versionize
 
                 Tag currentVersionTag = null;
                 Version currentVersion = null;
+                Version nextVersion = null;
+
+                if (!string.IsNullOrWhiteSpace(releaseVersion))
+                {
+                    try
+                    {
+                        nextVersion = Version.Parse(releaseVersion);
+                    }
+                    catch (Exception)
+                    {
+                        Exit($"Could not parse the specified release version {releaseVersion} as valid version", 1);
+                    }
+                }
 
                 if (!readVersionFromTag)
                 {
@@ -89,24 +103,14 @@ namespace Versionize
 
                 var versionIncrement = VersionIncrementStrategy.CreateFrom(conventionalCommits);
 
-                var nextVersion = currentVersionTag == null ? currentVersion : versionIncrement.NextVersion(currentVersion, ignoreInsignificant);
+                nextVersion = currentVersionTag == null ? currentVersion : versionIncrement.NextVersion(currentVersion, ignoreInsignificant);
 
                 if (ignoreInsignificant && nextVersion == currentVersion)
                 {
                     Exit($"Version was not affected by commits since last release ({currentVersion}), since you specified to ignore insignificant changes, no action will be performed.", 0);
                 }
 
-                if (!string.IsNullOrWhiteSpace(releaseVersion))
-                {
-                    try
-                    {
-                        nextVersion = Version.Parse(releaseVersion);
-                    }
-                    catch (Exception)
-                    {
-                        Exit($"Could not parse the specified release version {releaseVersion} as valid version", 1);
-                    }
-                }
+                
 
                 var versionTime = DateTimeOffset.Now;
 
@@ -118,9 +122,12 @@ namespace Versionize
                     {
                         projects.WriteVersion(nextVersion);
 
-                        foreach (var projectFile in projects.GetProjectFiles())
+                        if(!skipCommit)
                         {
-                            Commands.Stage(repo, projectFile);
+                            foreach (var projectFile in projects.GetProjectFiles())
+                            {
+                                Commands.Stage(repo, projectFile);
+                            }
                         }
                     }
 
@@ -186,6 +193,80 @@ namespace Versionize
 
                 return nextVersion;
             }
+        }
+
+        public void UpdateProjectVersion(
+            string path = null,
+            string releaseVersion = null)
+        {
+            Version nextVersion = null;
+
+            if (string.IsNullOrWhiteSpace(releaseVersion))
+            {
+                Exit($"Could not parse the specified release version {releaseVersion} as valid version", 1);
+            }
+
+            try
+            {
+                nextVersion = Version.Parse(releaseVersion);
+            }
+            catch (Exception)
+            {
+                Exit($"Could not parse the specified release version {releaseVersion} as valid version", 1);
+            }
+            
+
+            if (String.IsNullOrWhiteSpace(path))
+            {
+                Exit($"Path {path} does not exist", 2);
+            }
+
+            List<Project> projects = new List<Project>();
+            bool isFile = false;
+            if (path.EndsWith(".sln"))
+            {
+                if(!File.Exists(path))
+                    Exit($"Path {path} does not exist", 2);
+
+                var slnFInfo = new FileInfo(path);
+
+                var slnLines = File.ReadAllLines(path);
+                foreach(var line in slnLines)
+                {
+                    if(line.Contains(".csproj"))
+                    {
+                        var parts = line.Split(new char[] { ',' });
+                        foreach(var part in parts)
+                        {
+                            if(part.Contains(".csproj"))
+                            {
+                                var projRelPath = part.Trim().Trim('"');
+                                var projPath = slnFInfo.Directory.FullName + Path.DirectorySeparatorChar + projRelPath;
+                                projects.Add(Project.Create(new FileInfo(projPath).FullName, true));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            else if(path.EndsWith(".csproj"))
+            {
+                projects.Add(Project.Create(new FileInfo(path).FullName, true));
+            }
+            else if(Directory.Exists(path))
+            {
+                var files = Directory
+                    .GetFiles(path, "*.csproj", SearchOption.AllDirectories);
+                foreach(var file in files)
+                {
+                    projects.Add(Project.Create(file, true));
+                }
+            }
+
+            foreach(var project in projects)
+            {
+                project.WriteVersion(nextVersion);
+            }   
         }
 
         public void BuildChangelog(bool dryrun = false,

@@ -23,6 +23,8 @@ namespace Versionize
             var optionReleaseAs = app.Option("-r|--release-as <VERSION>", "Specify the release version manually", CommandOptionType.SingleValue);
             var optionSilent = app.Option("--silent", "Suppress output to console", CommandOptionType.NoValue);
 
+            var optionVersionProjectsOnly = app.Option("--version-projects-only", "Just update the version of the projects", CommandOptionType.NoValue);
+            var optionVersionProjectsPath = app.Option("--version-projects-path", "Just update the version of the projects", CommandOptionType.SingleValue);
             var optionSkipCommit = app.Option("--skip-commit", "Skip commit and git tag after updating changelog and incrementing the version", CommandOptionType.NoValue);
             var optionSkipChangelog = app.Option("--skip-changelog", "Skip creating and commiting the changelog", CommandOptionType.NoValue);
             var optionSkipCommitProjects = app.Option("--skip-commit-projects", "Skip commiting project files", CommandOptionType.NoValue);
@@ -43,7 +45,16 @@ namespace Versionize
             {
                 CommandLineUI.Verbosity = optionSilent.HasValue() ? LogLevel.Silent : LogLevel.All;
 
-                if(optionChangelogOnly.HasValue())
+                if(optionVersionProjectsOnly.HasValue())
+                {
+                    WorkingCopy
+                       .Discover(optionWorkingDirectory.Value() ?? Directory.GetCurrentDirectory())
+                       .UpdateProjectVersion(
+                           releaseVersion: optionReleaseAs.Value(),
+                           path: optionVersionProjectsPath.Value()
+                       );
+                }
+                else if(optionChangelogOnly.HasValue())
                 {
                     WorkingCopy
                         .Discover(optionWorkingDirectory.Value() ?? Directory.GetCurrentDirectory())

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IO;
+using System.Text;
 using System.Xml;
 using Version = NuGet.Versioning.SemanticVersion;
 
@@ -14,10 +16,16 @@ namespace Versionize
             ProjectFile = projectFile;
             Version = version;
         }
-
         public static Project Create(string projectFile)
         {
-            var version = ReadVersion(projectFile);
+            return Create(projectFile, false);
+        }
+        
+        public static Project Create(string projectFile, bool skipCurrentVersion)
+        {
+            Version version = null;
+            if (!skipCurrentVersion)
+                version = ReadVersion(projectFile);
 
             return new Project(projectFile, version);
         }
@@ -78,10 +86,75 @@ namespace Versionize
                 throw new InvalidOperationException($"Project {ProjectFile} is not a valid csproj file. Please make sure that you have a valid csproj file in place!");
             }
 
-            var versionElement = doc.SelectSingleNode("/Project/PropertyGroup/Version");
-            versionElement.InnerText = nextVersion.ToString();
+            var propNode = doc.SelectSingleNode("/Project/PropertyGroup");
 
-            doc.Save(ProjectFile);
+            var versionElement = doc.SelectSingleNode("/Project/PropertyGroup/Version");
+            if (versionElement != null)
+            {
+                versionElement.InnerText = nextVersion.ToString();
+            }
+            else
+            {
+                versionElement = doc.CreateElement("Version");
+                versionElement.InnerText = nextVersion.ToString();
+                propNode.AppendChild(versionElement);
+                propNode.AppendChild(doc.CreateWhitespace(Environment.NewLine));
+            }
+
+            var assemblyVersionElement = doc.SelectSingleNode("/Project/PropertyGroup/AssemblyVersion");
+            if (assemblyVersionElement != null)
+            {
+                assemblyVersionElement.InnerText = $"{nextVersion.Major}.0.0.0";
+            }
+            else
+            {
+                assemblyVersionElement = doc.CreateElement("AssemblyVersion");
+                assemblyVersionElement.InnerText = $"{nextVersion.Major}.0.0.0";
+                propNode.AppendChild(assemblyVersionElement);
+                propNode.AppendChild(doc.CreateWhitespace(Environment.NewLine));
+            }
+
+            var assemblyFileVersionElement = doc.SelectSingleNode("/Project/PropertyGroup/FileVersion");
+            if (assemblyFileVersionElement != null)
+            {
+                assemblyFileVersionElement.InnerText = $"{nextVersion.Major}.{nextVersion.Minor}.{nextVersion.Patch}.0";
+            }
+            else
+            {
+                assemblyFileVersionElement = doc.CreateElement("FileVersion");
+                assemblyFileVersionElement.InnerText = $"{nextVersion.Major}.{nextVersion.Minor}.{nextVersion.Patch}.0";
+                propNode.AppendChild(assemblyFileVersionElement);
+                propNode.AppendChild(doc.CreateWhitespace(Environment.NewLine));
+            }
+            var assemblyInformationalVersionElement = doc.SelectSingleNode("/Project/PropertyGroup/InformationalVersion");
+            if (assemblyInformationalVersionElement != null)
+            {
+                assemblyInformationalVersionElement.InnerText = nextVersion.ToFullString();
+            }
+            else
+            {
+                assemblyInformationalVersionElement = doc.CreateElement("InformationalVersion");
+                assemblyInformationalVersionElement.InnerText = nextVersion.ToFullString();
+                propNode.AppendChild(assemblyInformationalVersionElement);
+                propNode.AppendChild(doc.CreateWhitespace(Environment.NewLine));
+            }
+
+
+
+            XmlWriterSettings settings = new XmlWriterSettings();
+            settings.Indent = true;
+            settings.IndentChars = "\t";
+
+            using (Stream stream = new FileStream(ProjectFile, FileMode.Open, FileAccess.ReadWrite)) //or FileStream to write an Xml file directly to disk
+            {
+                XmlWriter writer = XmlWriter.Create(stream, settings);
+                doc.WriteTo(writer);
+
+                writer.Close();
+            }
+
+
+            //doc.Save(ProjectFile);
         }
     }
 }
