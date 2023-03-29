@@ -5,7 +5,8 @@
     <ToolCommandName>versionize</ToolCommandName>
     <PackAsTool>True</PackAsTool>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net5.0</TargetFrameworks>
+    <TargetFrameworks>net7.0</TargetFrameworks>
+    <RollForward>Major</RollForward>
     <Authors>saintedlama</Authors>
     <PackageTags>release;versioning;conventional;commit;git</PackageTags>
     <Description>Automatic versioning and CHANGELOG generation, using conventional commit messages.</Description>
